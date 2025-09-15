@@ -139,8 +139,8 @@ document.addEventListener("DOMContentLoaded", function () {
    */
   function setupPatternSuggestions() {
     const patterns = {
-      "flag{...}": "flag\\{.*\\}",
-      "CTF{...}": "CTF\\{.*\\}",
+      "flag{...}": "flag\\{.+\\}",
+      "CTF{...}": "CTF\\{.+\\}",
       "CTF{alphanumeric}": "CTF\\{[a-zA-Z0-9_]+\\}",
       "flag{hex}": "flag\\{[0-9a-f]+\\}",
       "CTF{32-char-hex}": "CTF\\{[0-9a-f]{32}\\}",

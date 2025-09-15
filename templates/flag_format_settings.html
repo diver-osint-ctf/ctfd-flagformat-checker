@@ -109,41 +109,8 @@
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save"></i> Save Settings
                             </button>
-                            <a href="/admin" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left"></i> Back to Admin
-                            </a>
                         </div>
                     </form>
-                </div>
-            </div>
-
-            <!-- Information Panel -->
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h4 class="card-title">Regular Expression Examples</h4>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5>Common Patterns</h5>
-                            <ul class="list-unstyled">
-                                <li><code>flag\{.*\}</code> - Matches: flag{anything}</li>
-                                <li><code>CTF\{[a-zA-Z0-9_]+\}</code> - Matches: CTF{alphanumeric_underscore}</li>
-                                <li><code>[A-Z]{3}\{[a-f0-9]{32}\}</code> - Matches: ABC{32-char-hex}</li>
-                                <li><code>flag\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}</code> - UUID format</li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <h5>Important Notes</h5>
-                            <ul>
-                                <li>Use <code>\{</code> and <code>\}</code> to match literal braces</li>
-                                <li>Pattern must match the entire flag (not just a part)</li>
-                                <li>Case-sensitive matching is used</li>
-                                <li>Invalid regex patterns will prevent saving</li>
-                                <li>Empty pattern disables format validation</li>
-                            </ul>
-                        </div>
-                    </div>
                 </div>
             </div>
 

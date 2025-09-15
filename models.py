@@ -8,7 +8,7 @@ class FlagFormatConfig(db.Model):
     """
 
     __tablename__ = "flag_format_config"
-    __table_args__ = {'extend_existing': True}
+    __table_args__ = {"extend_existing": True}
 
     id = db.Column(db.Integer, primary_key=True)
     enabled = db.Column(db.Boolean, default=False, nullable=False)

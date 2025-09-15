@@ -31,15 +31,15 @@ class TestRegexValidationLogic(unittest.TestCase):
         ctfd_mock.utils = MagicMock()
         ctfd_mock.utils.decorators = MagicMock()
 
-        sys.modules['CTFd'] = ctfd_mock
-        sys.modules['CTFd.plugins'] = ctfd_mock.plugins
-        sys.modules['CTFd.models'] = ctfd_mock.models
-        sys.modules['CTFd.utils'] = ctfd_mock.utils
-        sys.modules['CTFd.utils.decorators'] = ctfd_mock.utils.decorators
+        sys.modules["CTFd"] = ctfd_mock
+        sys.modules["CTFd.plugins"] = ctfd_mock.plugins
+        sys.modules["CTFd.models"] = ctfd_mock.models
+        sys.modules["CTFd.utils"] = ctfd_mock.utils
+        sys.modules["CTFd.utils.decorators"] = ctfd_mock.utils.decorators
 
         # Mock Flask
         flask_mock = MagicMock()
-        sys.modules['flask'] = flask_mock
+        sys.modules["flask"] = flask_mock
 
     def validate_pattern_for_save(self, pattern, enabled=True):
         """
@@ -52,18 +52,6 @@ class TestRegexValidationLogic(unittest.TestCase):
         try:
             # Basic regex compilation check
             re.compile(pattern)
-
-            # Security validation
-            try:
-                from security import RegexSecurityValidator
-                validator = RegexSecurityValidator()
-                is_safe, security_error = validator.validate_pattern_security(pattern)
-                if not is_safe:
-                    return False, f"Unsafe regular expression pattern: {security_error}"
-            except ImportError:
-                # If security module not available, skip security validation
-                pass
-
             return True, "Valid pattern"
 
         except re.error as e:
@@ -85,7 +73,9 @@ class TestRegexValidationLogic(unittest.TestCase):
         for pattern in valid_patterns:
             with self.subTest(pattern=pattern):
                 is_valid, message = self.validate_pattern_for_save(pattern)
-                self.assertTrue(is_valid, f"Pattern '{pattern}' should be valid: {message}")
+                self.assertTrue(
+                    is_valid, f"Pattern '{pattern}' should be valid: {message}"
+                )
 
     def test_invalid_patterns_rejected(self):
         """Test that invalid patterns are rejected."""
@@ -104,25 +94,24 @@ class TestRegexValidationLogic(unittest.TestCase):
         for pattern, expected_error_type in invalid_patterns:
             with self.subTest(pattern=pattern):
                 is_valid, message = self.validate_pattern_for_save(pattern)
-                self.assertFalse(is_valid, f"Pattern '{pattern}' should be invalid: {message}")
+                self.assertFalse(
+                    is_valid, f"Pattern '{pattern}' should be invalid: {message}"
+                )
                 self.assertIn("Invalid regular expression", message)
 
-    def test_unsafe_patterns_rejected(self):
-        """Test that unsafe patterns are rejected by security validator."""
-        # These patterns are valid regex but unsafe
-        unsafe_patterns = [
-            "(?#comment)",      # Comment groups
-            "a" * 600,          # Too long pattern
-            # Note: (a+)+b might not be detected as unsafe in our simple validator
+    def test_long_patterns_handled(self):
+        """Test that very long patterns are handled properly."""
+        # Very long patterns (still valid regex)
+        long_patterns = [
+            "a" * 100,  # Long but valid pattern
+            "flag\\{" + "a" * 200 + "\\}",  # Long flag pattern
         ]
 
-        for pattern in unsafe_patterns:
-            with self.subTest(pattern=pattern):
+        for pattern in long_patterns:
+            with self.subTest(pattern=f"pattern of length {len(pattern)}"):
                 is_valid, message = self.validate_pattern_for_save(pattern)
-                # These should either be rejected as unsafe or pass basic validation
-                if not is_valid:
-                    self.assertIn("Unsafe regular expression pattern", message)
-                # If they pass, that's also acceptable for some patterns
+                # These should pass basic regex validation
+                self.assertTrue(is_valid, f"Long pattern should be valid: {message}")
 
     def test_disabled_validation_allows_any_pattern(self):
         """Test that disabled validation allows any pattern."""
@@ -134,7 +123,9 @@ class TestRegexValidationLogic(unittest.TestCase):
 
         for pattern in patterns:
             with self.subTest(pattern=pattern):
-                is_valid, message = self.validate_pattern_for_save(pattern, enabled=False)
+                is_valid, message = self.validate_pattern_for_save(
+                    pattern, enabled=False
+                )
                 msg = f"Disabled validation should allow '{pattern}': {message}"
                 self.assertTrue(is_valid, msg)
 
@@ -162,29 +153,29 @@ class TestComplexPatternValidation(unittest.TestCase):
 
         # Mock CTFd modules
         ctfd_mock = MagicMock()
-        sys.modules['CTFd'] = ctfd_mock
-        sys.modules['CTFd.plugins'] = ctfd_mock.plugins
-        sys.modules['CTFd.models'] = ctfd_mock.models
-        sys.modules['CTFd.utils'] = ctfd_mock.utils
-        sys.modules['CTFd.utils.decorators'] = ctfd_mock.utils.decorators
+        sys.modules["CTFd"] = ctfd_mock
+        sys.modules["CTFd.plugins"] = ctfd_mock.plugins
+        sys.modules["CTFd.models"] = ctfd_mock.models
+        sys.modules["CTFd.utils"] = ctfd_mock.utils
+        sys.modules["CTFd.utils.decorators"] = ctfd_mock.utils.decorators
 
         # Mock Flask
         flask_mock = MagicMock()
-        sys.modules['flask'] = flask_mock
+        sys.modules["flask"] = flask_mock
 
     def test_real_world_flag_patterns(self):
         """Test real-world flag patterns that should work."""
         real_patterns = [
             # Common CTF flag formats
-            r"flag\{[a-f0-9]{32}\}",           # MD5 hash
-            r"flag\{[a-f0-9]{40}\}",           # SHA1 hash
-            r"CTF\{[A-Za-z0-9_]+\}",           # Alphanumeric with underscores
-            r"[A-Z]{3}\{.*\}",                 # Any 3 uppercase letters
-            r"flag\{[^}]+\}",                  # Anything except closing brace
-            r"(?i)flag\{.*\}",                 # Case insensitive
-            r"^flag\{.*\}$",                   # Anchored
-            r"flag\{.{10,50}\}",               # Length constraint
-            r"flag\{[a-zA-Z0-9_\-]+\}",        # Common characters
+            r"flag\{[a-f0-9]{32}\}",  # MD5 hash
+            r"flag\{[a-f0-9]{40}\}",  # SHA1 hash
+            r"CTF\{[A-Za-z0-9_]+\}",  # Alphanumeric with underscores
+            r"[A-Z]{3}\{.*\}",  # Any 3 uppercase letters
+            r"flag\{[^}]+\}",  # Anything except closing brace
+            r"(?i)flag\{.*\}",  # Case insensitive
+            r"^flag\{.*\}$",  # Anchored
+            r"flag\{.{10,50}\}",  # Length constraint
+            r"flag\{[a-zA-Z0-9_\-]+\}",  # Common characters
         ]
 
         for pattern in real_patterns:
@@ -203,10 +194,10 @@ class TestComplexPatternValidation(unittest.TestCase):
     def test_potentially_dangerous_patterns(self):
         """Test patterns that could be dangerous but might still be valid regex."""
         dangerous_patterns = [
-            r"(a+)+",               # Catastrophic backtracking potential
-            r"(a|a)*",              # Redundant alternation
-            r"a{1000}",             # Very long repetition
-            r".*.*.*.*.*",          # Multiple .* patterns
+            r"(a+)+",  # Catastrophic backtracking potential
+            r"(a|a)*",  # Redundant alternation
+            r"a{1000}",  # Very long repetition
+            r".*.*.*.*.*",  # Multiple .* patterns
         ]
 
         for pattern in dangerous_patterns:
@@ -216,16 +207,8 @@ class TestComplexPatternValidation(unittest.TestCase):
                     compiled = re.compile(pattern)
                     self.assertIsNotNone(compiled)
 
-                    # Test with security validator if available
-                    try:
-                        from security import RegexSecurityValidator
-                        validator = RegexSecurityValidator()
-                        is_safe, error = validator.validate_pattern_security(pattern)
-                        if not is_safe:
-                            msg = f"Security validator rejected dangerous pattern '{pattern}'"
-                            print(f"{msg}: {error}")
-                    except ImportError:
-                        pass
+                    # Basic regex validation only
+                    print(f"Valid regex pattern: {pattern}")
 
                 except re.error:
                     # If they fail to compile, that's also acceptable
@@ -236,12 +219,11 @@ class TestSaveSettingsIntegration(unittest.TestCase):
     """Integration tests for Save Settings validation."""
 
     def test_validation_workflow(self):
-        """Test the complete validation workflow."""
+        """Test the complete validation workflow (simplified)."""
         test_cases = [
             # (enabled, pattern, should_pass, expected_message_contains)
             (True, r"flag\{.*\}", True, None),
             (True, "[invalid", False, "Invalid regex"),
-            (True, "(?#comment)", False, "Unsafe"),
             (False, "[invalid", True, None),  # Disabled validation
             (True, "", True, None),  # Empty pattern
             (True, r"flag\{[a-f0-9]{32}\}", True, None),  # Valid MD5 pattern
@@ -256,24 +238,10 @@ class TestSaveSettingsIntegration(unittest.TestCase):
                     message = "Validation skipped"
                 else:
                     try:
-                        # Basic regex check
+                        # Basic regex check only
                         re.compile(pattern)
-
-                        # Security check
-                        try:
-                            from security import RegexSecurityValidator
-                            validator = RegexSecurityValidator()
-                            is_safe, security_error = validator.validate_pattern_security(pattern)
-                            if not is_safe:
-                                result = False
-                                message = f"Unsafe: {security_error}"
-                            else:
-                                result = True
-                                message = "Valid"
-                        except ImportError:
-                            result = True
-                            message = "Valid (basic check only)"
-
+                        result = True
+                        message = "Valid"
                     except re.error as e:
                         result = False
                         message = f"Invalid regex: {str(e)}"
@@ -288,5 +256,5 @@ class TestSaveSettingsIntegration(unittest.TestCase):
                         self.assertIn(expected_message, message)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

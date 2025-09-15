@@ -3,28 +3,15 @@ import logging
 from flask import request, jsonify
 from CTFd.plugins import register_plugin_assets_directory
 from CTFd.models import db
+
 try:
     # Try relative imports first (for CTFd plugin context)
     from .models import FlagFormatConfig
     from .admin import admin_blueprint
-    from .enhanced_validation import (
-        enhanced_check_flag_format,
-        flag_validator,
-        get_validation_stats,
-        get_validator_health,
-        clear_validation_cache,
-    )
 except ImportError:
     # Fall back to absolute imports for testing
     from models import FlagFormatConfig
     from admin import admin_blueprint
-    from enhanced_validation import (
-        enhanced_check_flag_format,
-        flag_validator,
-        get_validation_stats,
-        get_validator_health,
-        clear_validation_cache,
-    )
 
 
 def init_tables_safely(app, logger):
@@ -58,16 +45,16 @@ def load(app):
     logger.setLevel(logging.INFO)
 
     # Validate app object
-    if not hasattr(app, 'url_map'):
+    if not hasattr(app, "url_map"):
         logger.error("Invalid Flask app object: missing url_map attribute")
         return
 
-    if not hasattr(app, 'blueprints'):
+    if not hasattr(app, "blueprints"):
         logger.error("Invalid Flask app object: missing blueprints attribute")
         return
 
     # Check if plugin is already loaded to prevent duplicate registration
-    plugin_loaded_key = '_flag_format_checker_loaded'
+    plugin_loaded_key = "_flag_format_checker_loaded"
     if hasattr(app, plugin_loaded_key) and getattr(app, plugin_loaded_key):
         logger.info(
             "Flag Format Checker plugin already loaded, skipping duplicate registration"
@@ -82,9 +69,6 @@ def load(app):
         app, base_path="/plugins/ctfd-flagformat-checker/assets/"
     )
 
-    # Initialize the enhanced validator with app context
-    flag_validator.app = app
-
     # Register admin blueprint (check if already registered)
     blueprint_name = admin_blueprint.name
     logger.info(f"Registering blueprint: {blueprint_name}")
@@ -96,58 +80,22 @@ def load(app):
         logger.info("=== ALL REGISTERED ROUTES ===")
         try:
             for rule in app.url_map.iter_rules():
-                if '/admin/flag-format' in str(rule.rule):
-                    methods = ','.join(rule.methods)
-                    logger.info(f"Flag Format Route: {rule.rule} -> {rule.endpoint} [{methods}]")
+                if "/admin/flag-format" in str(rule.rule):
+                    methods = ",".join(rule.methods)
+                    logger.info(
+                        f"Flag Format Route: {rule.rule} -> {rule.endpoint} [{methods}]"
+                    )
         except (AttributeError, RuntimeError) as e:
             logger.warning(f"Could not access URL map for route logging: {str(e)}")
     else:
         logger.warning(f"Blueprint {blueprint_name} already registered")
 
-    # Direct API routes removed - Test Flag Format now runs client-side only
-
-    # Register enhanced hooks
+    # Register flag format validation hook
     @app.before_request
-    def enhanced_flag_format_hook():
-        result = enhanced_check_flag_format(app)
+    def flag_format_hook():
+        result = check_flag_format(app)
         if result:
             return result
-
-    # Register monitoring endpoints for admin use only if not already registered
-    stats_endpoint = "/admin/flag-format/stats"
-    cache_endpoint = "/admin/flag-format/clear-cache"
-
-    # Check if routes are already registered (with error handling)
-    existing_rules = []
-    try:
-        existing_rules = [str(rule.rule) for rule in app.url_map.iter_rules()]
-    except (AttributeError, RuntimeError) as e:
-        logger.warning(f"Could not access URL map for route checking: {str(e)}")
-        # Fall back to always registering routes (they'll be ignored if already exist)
-        existing_rules = []
-
-    if stats_endpoint not in existing_rules:
-        @app.route(stats_endpoint, methods=["GET"])
-        def flag_format_stats():
-            """Get validation statistics."""
-            try:
-                stats = get_validation_stats()
-                health = get_validator_health()
-                return jsonify({"stats": stats, "health": health})
-            except Exception as e:
-                logger.error(f"Error getting stats: {str(e)}")
-                return jsonify({"error": "Failed to get statistics"}), 500
-
-    if cache_endpoint not in existing_rules:
-        @app.route(cache_endpoint, methods=["POST"])
-        def clear_flag_format_cache():
-            """Clear validation cache."""
-            try:
-                clear_validation_cache()
-                return jsonify({"message": "Cache cleared successfully"})
-            except Exception as e:
-                logger.error(f"Error clearing cache: {str(e)}")
-                return jsonify({"error": "Failed to clear cache"}), 500
 
     # Mark plugin as loaded to prevent duplicate registration
     setattr(app, plugin_loaded_key, True)

@@ -1,6 +1,13 @@
 import re
 from flask import (
-    Blueprint, render_template, request, jsonify, flash, redirect, url_for, session
+    Blueprint,
+    render_template,
+    request,
+    jsonify,
+    flash,
+    redirect,
+    url_for,
+    session,
 )
 from CTFd.utils.decorators import admins_only
 
@@ -10,11 +17,14 @@ try:
 except ImportError:
     try:
         from CTFd.utils.decorators import csrf
+
         csrf_exempt = csrf.exempt
     except (ImportError, AttributeError):
         # Ultimate fallback - create a no-op decorator
         def csrf_exempt(f):
             return f
+
+
 try:
     from .models import FlagFormatConfig
 except ImportError:
@@ -63,39 +73,26 @@ def create_admin_blueprint():
             # Validate flag format if provided
             if enabled and flag_format:
                 try:
-                    # Import security validator
-                    try:
-                        from .security import RegexSecurityValidator
-                    except ImportError:
-                        from security import RegexSecurityValidator
-
                     # Basic regex compilation check
                     re.compile(flag_format)
-
-                    # Security validation
-                    validator = RegexSecurityValidator()
-                    is_safe, security_error = validator.validate_pattern_security(flag_format)
-                    if not is_safe:
-                        flash(f"Unsafe regular expression pattern: {security_error}", "error")
-                        return redirect(
-                            url_for("flag_format_admin.flag_format_settings")
-                        )
 
                     # Additional flag format validation (common mistakes)
                     validation_warnings = []
 
                     # Check for unescaped braces (common mistake)
-                    if '{' in flag_format and '\\{' not in flag_format:
+                    if "{" in flag_format and "\\{" not in flag_format:
                         validation_warnings.append(
                             "Pattern contains '{' - did you mean '\\{' for literal braces?"
                         )
-                    if '}' in flag_format and '\\}' not in flag_format:
+                    if "}" in flag_format and "\\}" not in flag_format:
                         validation_warnings.append(
                             "Pattern contains '}' - did you mean '\\}' for literal braces?"
                         )
 
                     # Check for common flag format patterns
-                    if flag_format.startswith('flag{') and not flag_format.startswith('flag\\{'):
+                    if flag_format.startswith("flag{") and not flag_format.startswith(
+                        "flag\\{"
+                    ):
                         msg = "Pattern starts with 'flag{' - use 'flag\\{' for literal braces"
                         validation_warnings.append(msg)
 
@@ -110,15 +107,11 @@ def create_admin_blueprint():
 
                 except re.error as e:
                     flash(f"Invalid regular expression: {str(e)}", "error")
-                    return redirect(
-                        url_for("flag_format_admin.flag_format_settings")
-                    )
+                    return redirect(url_for("flag_format_admin.flag_format_settings"))
 
             # Set default error message if empty
             if not error_message:
-                error_message = (
-                    "Flag format does not match the required pattern."
-                )
+                error_message = "Flag format does not match the required pattern."
 
             # Update configuration
             config = FlagFormatConfig.get_config()

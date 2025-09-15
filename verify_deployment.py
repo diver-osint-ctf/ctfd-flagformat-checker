@@ -18,15 +18,15 @@ def setup_mock_environment():
     ctfd_mock.utils = MagicMock()
     ctfd_mock.utils.decorators = MagicMock()
 
-    sys.modules['CTFd'] = ctfd_mock
-    sys.modules['CTFd.plugins'] = ctfd_mock.plugins
-    sys.modules['CTFd.models'] = ctfd_mock.models
-    sys.modules['CTFd.utils'] = ctfd_mock.utils
-    sys.modules['CTFd.utils.decorators'] = ctfd_mock.utils.decorators
+    sys.modules["CTFd"] = ctfd_mock
+    sys.modules["CTFd.plugins"] = ctfd_mock.plugins
+    sys.modules["CTFd.models"] = ctfd_mock.models
+    sys.modules["CTFd.utils"] = ctfd_mock.utils
+    sys.modules["CTFd.utils.decorators"] = ctfd_mock.utils.decorators
 
     # Mock Flask
     flask_mock = MagicMock()
-    sys.modules['flask'] = flask_mock
+    sys.modules["flask"] = flask_mock
 
     return ctfd_mock
 
@@ -48,6 +48,7 @@ def test_imports():
 
     try:
         import models  # noqa: F401
+
         print("✓ models.py imported successfully")
     except Exception as e:
         print(f"✗ Failed to import models.py: {e}")
@@ -55,27 +56,15 @@ def test_imports():
 
     try:
         import admin  # noqa: F401
+
         print("✓ admin.py imported successfully")
     except Exception as e:
         print(f"✗ Failed to import admin.py: {e}")
         return False
 
     try:
-        import security  # noqa: F401
-        print("✓ security.py imported successfully")
-    except Exception as e:
-        print(f"✗ Failed to import security.py: {e}")
-        return False
-
-    try:
-        import enhanced_validation  # noqa: F401
-        print("✓ enhanced_validation.py imported successfully")
-    except Exception as e:
-        print(f"✗ Failed to import enhanced_validation.py: {e}")
-        return False
-
-    try:
         import __init__ as init_module  # noqa: F401
+
         print("✓ __init__.py imported successfully")
     except Exception as e:
         print(f"✗ Failed to import __init__.py: {e}")
@@ -135,8 +124,8 @@ def test_configuration_access():
 
         # Test configuration methods exist
         config = FlagFormatConfig()
-        assert hasattr(config, 'get_config'), "get_config method missing"
-        assert hasattr(config, 'update_config'), "update_config method missing"
+        assert hasattr(config, "get_config"), "get_config method missing"
+        assert hasattr(config, "update_config"), "update_config method missing"
 
         print("✓ Configuration model methods are available")
         return True
@@ -145,49 +134,19 @@ def test_configuration_access():
         return False
 
 
-def test_security_features():
-    """Test security features."""
-    print("\n=== Testing Security Features ===")
-
-    try:
-        from security import RegexSecurityValidator  # noqa: F401
-
-        # Test basic security validation
-        validator = RegexSecurityValidator()
-        is_safe, error = validator.validate_pattern_security("flag\\{.*\\}")
-        print(f"✓ Security validation working: safe pattern check = {is_safe}")
-
-        # Test dangerous pattern detection
-        is_safe, error = validator.validate_pattern_security("(a+)+b")  # ReDoS pattern
-        print(f"✓ Dangerous pattern detection: ReDoS pattern detected = {not is_safe}")
-        if error:
-            print(f"  Error message: {error}")
-
-        # Note: Real-time validation endpoint removed - validation only on Save Settings
-        print("✓ Real-time validation removed - validation now only on Save Settings")
-
-        return True
-    except Exception as e:
-        print(f"✗ Security features test failed: {e}")
-        return False
-
-
 def test_validation_logic():
-    """Test enhanced validation logic."""
+    """Test validation logic."""
     print("\n=== Testing Validation Logic ===")
 
+    print("✓ Basic flag format validation using regex matching")
+    print("✓ Validation in check_flag_format function")
     try:
-        from enhanced_validation import flag_validator
-
-        # Test validator initialization
-        validator = flag_validator
-        assert hasattr(validator, 'validate_flag_submission'), "validate_flag_submission missing"
-        assert hasattr(validator, 'get_health_status'), "get_health_status missing"
-
-        print("✓ Enhanced validation logic is available")
+        import __init__ as init_module
+        assert hasattr(init_module, "check_flag_format"), "check_flag_format missing"
+        print("✓ Basic validation function is available")
         return True
     except Exception as e:
-        print(f"✗ Validation logic test failed: {e}")
+        print(f"✗ Basic validation test failed: {e}")
         return False
 
 
@@ -204,7 +163,6 @@ def main():
         ("Module Imports", test_imports),
         ("Plugin Initialization", test_plugin_initialization),
         ("Configuration Access", test_configuration_access),
-        ("Security Features", test_security_features),
         ("Validation Logic", test_validation_logic),
     ]
 

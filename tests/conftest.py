@@ -1,6 +1,7 @@
 """
 Pytest configuration and fixtures for CTFd Flag Format Checker tests.
 """
+
 import sys
 from unittest.mock import Mock
 
@@ -28,8 +29,8 @@ def pytest_configure(config):
     ctfd_decorators_mock.admins_only = lambda f: f
 
     # Mock the specific modules that will be imported
-    sys.modules['CTFd'] = ctfd_mock
-    sys.modules['CTFd.models'] = ctfd_models_mock
-    sys.modules['CTFd.plugins'] = ctfd_plugins_mock
-    sys.modules['CTFd.utils'] = ctfd_utils_mock
-    sys.modules['CTFd.utils.decorators'] = ctfd_decorators_mock
+    sys.modules["CTFd"] = ctfd_mock
+    sys.modules["CTFd.models"] = ctfd_models_mock
+    sys.modules["CTFd.plugins"] = ctfd_plugins_mock
+    sys.modules["CTFd.utils"] = ctfd_utils_mock
+    sys.modules["CTFd.utils.decorators"] = ctfd_decorators_mock
