@@ -1,0 +1,185 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+    <div class="container">
+        <h1>{{ title }}</h1>
+        <p class="lead">Configure flag format validation settings for your CTF.</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Flag Format Configuration</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <input type="hidden" name="nonce" value="{{ nonce }}">
+                        <div class="form-group mb-3">
+                            <div class="form-check">
+                                <input
+                                    class="form-check-input"
+                                    type="checkbox"
+                                    id="enabled"
+                                    name="enabled"
+                                    {{ 'checked' if config.enabled else '' }}
+                                >
+                                <label class="form-check-label" for="enabled">
+                                    <strong>Enable Flag Format Validation</strong>
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                When enabled, submitted flags will be validated against the specified format.
+                            </small>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="flag_format" class="form-label">
+                                <strong>Flag Format (Regular Expression)</strong>
+                            </label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="flag_format"
+                                name="flag_format"
+                                value="{{ config.flag_format or '' }}"
+                                placeholder="e.g., flag\{.*\} or CTF\{[a-zA-Z0-9_]+\}"
+                            >
+                            <small class="form-text text-muted">
+                                Use regular expressions to define the required flag format. Leave empty to disable format checking.
+                            </small>
+                            <div id="regex-status" class="mt-2"></div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="error_message" class="form-label">
+                                <strong>Error Message</strong>
+                            </label>
+                            <textarea
+                                class="form-control"
+                                id="error_message"
+                                name="error_message"
+                                rows="3"
+                                placeholder="Flag format does not match the required pattern."
+                            >{{ config.error_message }}</textarea>
+                            <small class="form-text text-muted">
+                                This message will be shown to users when their flag doesn't match the format.
+                            </small>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label class="form-label">
+                                <strong>Test Flag Format</strong>
+                            </label>
+                            <div class="input-group">
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="test_flag"
+                                    placeholder="Enter a test flag here..."
+                                >
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-secondary"
+                                    id="test-format-btn"
+                                >
+                                    Test Format
+                                </button>
+                            </div>
+                            <div id="test-result" class="mt-2"></div>
+                            <small class="form-text text-muted">
+                                Test your regular expression pattern with sample flags.
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Settings
+                            </button>
+                            <a href="/admin" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Admin
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Information Panel -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h4 class="card-title">Regular Expression Examples</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Common Patterns</h5>
+                            <ul class="list-unstyled">
+                                <li><code>flag\{.*\}</code> - Matches: flag{anything}</li>
+                                <li><code>CTF\{[a-zA-Z0-9_]+\}</code> - Matches: CTF{alphanumeric_underscore}</li>
+                                <li><code>[A-Z]{3}\{[a-f0-9]{32}\}</code> - Matches: ABC{32-char-hex}</li>
+                                <li><code>flag\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}</code> - UUID format</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Important Notes</h5>
+                            <ul>
+                                <li>Use <code>\{</code> and <code>\}</code> to match literal braces</li>
+                                <li>Pattern must match the entire flag (not just a part)</li>
+                                <li>Case-sensitive matching is used</li>
+                                <li>Invalid regex patterns will prevent saving</li>
+                                <li>Empty pattern disables format validation</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Configuration Info -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h4 class="card-title">Current Configuration</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Status:</strong>
+                            <span class="badge badge-{{ 'success' if config.enabled else 'secondary' }}">
+                                {{ 'Enabled' if config.enabled else 'Disabled' }}
+                            </span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Last Updated:</strong>
+                            {% if config.updated_at %}
+                                {{ config.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                            {% else %}
+                                Never
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Pattern:</strong>
+                            <code>{{ config.flag_format or 'Not set' }}</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include JavaScript -->
+<script src="/plugins/ctfd-flagformat-checker/assets/flag_format.js"></script>
+<link rel="stylesheet" href="/plugins/ctfd-flagformat-checker/assets/flag_format.css">
+{% endblock %}

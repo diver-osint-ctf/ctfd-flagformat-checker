@@ -1,0 +1,5 @@
+{
+  "name": "Flag Format Checker",
+  "route": "/admin/flag-format",
+  "description": "Advanced flag format validation plugin with security features"
+}
