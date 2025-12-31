@@ -5,6 +5,13 @@ from CTFd.plugins import register_plugin_assets_directory
 from CTFd.models import db
 
 try:
+    from sqlalchemy import inspect, text
+except ImportError:
+    # For testing environments where sqlalchemy might not be available
+    inspect = None
+    text = None
+
+try:
     # Try relative imports first (for CTFd plugin context)
     from .models import FlagFormatConfig
     from .admin import admin_blueprint
@@ -19,21 +26,65 @@ def init_tables_safely(app, logger):
     Safely initialize database tables with existence checking.
     """
     try:
-        # Use checkfirst=True to only create tables if they don't exist
-        app.db.create_all(checkfirst=True)
+        # Create tables if they don't exist (checkfirst is default behavior)
+        app.db.create_all()
         logger.debug("Database tables created/verified successfully")
     except Exception as e:
         # Log warning but don't fail - tables might already exist
         logger.warning(f"Database table creation warning: {str(e)}")
+        # Don't try to query the table here - it may not have all columns yet
 
-        # Try to verify if our specific table exists
-        try:
-            # Check if flag_format_config table exists by querying it
-            FlagFormatConfig.query.first()
-            logger.info("Flag format config table already exists and is accessible")
-        except Exception as check_e:
-            logger.error(f"Cannot access flag_format_config table: {str(check_e)}")
-            # Continue anyway - the table might be created later
+
+def migrate_database(app, logger):
+    """
+    Perform database migrations for schema updates.
+    """
+    # Skip migration if sqlalchemy tools are not available (testing environment)
+    if inspect is None or text is None:
+        logger.debug("SQLAlchemy tools not available, skipping migration")
+        return
+
+    try:
+        # Check if table exists first
+        inspector = inspect(app.db.engine)
+
+        # Check if table exists
+        if "flag_format_config" not in inspector.get_table_names():
+            logger.debug(
+                "flag_format_config table does not exist yet, skipping migration"
+            )
+            return
+
+        # Get existing columns
+        columns = [col["name"] for col in inspector.get_columns("flag_format_config")]
+
+        if "case_sensitive" not in columns:
+            logger.info("Migrating database: Adding case_sensitive column")
+
+            # Add case_sensitive column with default value
+            dialect_name = app.db.engine.dialect.name
+
+            if dialect_name == "mysql":
+                sql = "ALTER TABLE flag_format_config ADD COLUMN case_sensitive TINYINT(1) NOT NULL DEFAULT 0"
+            elif dialect_name == "postgresql":
+                sql = "ALTER TABLE flag_format_config ADD COLUMN case_sensitive BOOLEAN NOT NULL DEFAULT FALSE"
+            else:  # sqlite
+                sql = "ALTER TABLE flag_format_config ADD COLUMN case_sensitive BOOLEAN NOT NULL DEFAULT 0"
+
+            # Execute the migration
+            with app.db.engine.begin() as conn:
+                conn.execute(text(sql))
+
+            logger.info("Successfully added case_sensitive column")
+        else:
+            logger.debug("case_sensitive column already exists")
+
+    except Exception as e:
+        logger.error(f"Database migration error: {str(e)}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        # Continue anyway - the table might be created later
 
 
 def load(app):
@@ -63,6 +114,9 @@ def load(app):
 
     # Create database tables only if they don't exist
     init_tables_safely(app, logger)
+
+    # Run database migrations for schema updates
+    migrate_database(app, logger)
 
     # Register plugin assets directory
     register_plugin_assets_directory(
@@ -132,7 +186,9 @@ def check_flag_format(app):
 
             # Validate flag format using regex
             try:
-                pattern = re.compile(config.flag_format)
+                # Use case-insensitive matching if case_sensitive is False
+                regex_flags = 0 if config.case_sensitive else re.IGNORECASE
+                pattern = re.compile(config.flag_format, regex_flags)
                 if not pattern.fullmatch(submitted_flag):
                     # Return error response if format doesn't match
                     return (
@@ -165,7 +221,7 @@ def init_db():
     Initialize database tables for the plugin.
     """
     try:
-        db.create_all(checkfirst=True)
+        db.create_all()
         logger = logging.getLogger(__name__)
         logger.debug("Database tables initialized successfully")
     except Exception as e:
