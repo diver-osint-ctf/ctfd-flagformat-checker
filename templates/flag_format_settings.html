@@ -47,6 +47,24 @@
                         </div>
 
                         <div class="form-group mb-3">
+                            <div class="form-check">
+                                <input
+                                    class="form-check-input"
+                                    type="checkbox"
+                                    id="case_sensitive"
+                                    name="case_sensitive"
+                                    {{ 'checked' if config.case_sensitive else '' }}
+                                >
+                                <label class="form-check-label" for="case_sensitive">
+                                    <strong>Case Sensitive</strong>
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                When unchecked, flag validation will ignore case (e.g., "FLAG{test}" and "flag{test}" are treated as the same). When checked, case must match exactly.
+                            </small>
+                        </div>
+
+                        <div class="form-group mb-3">
                             <label for="flag_format" class="form-label">
                                 <strong>Flag Format (Regular Expression)</strong>
                             </label>

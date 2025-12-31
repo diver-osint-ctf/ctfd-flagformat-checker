@@ -67,6 +67,7 @@ def create_admin_blueprint():
         """
         try:
             enabled = request.form.get("enabled") == "on"
+            case_sensitive = request.form.get("case_sensitive") == "on"
             flag_format = request.form.get("flag_format", "").strip()
             error_message = request.form.get("error_message", "").strip()
 
@@ -116,7 +117,10 @@ def create_admin_blueprint():
             # Update configuration
             config = FlagFormatConfig.get_config()
             config.update_config(
-                enabled=enabled, flag_format=flag_format, error_message=error_message
+                enabled=enabled,
+                flag_format=flag_format,
+                error_message=error_message,
+                case_sensitive=case_sensitive,
             )
 
             flash("Flag format settings updated successfully!", "success")

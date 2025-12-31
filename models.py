@@ -18,6 +18,7 @@ class FlagFormatConfig(db.Model):
         default="Flag format does not match the required pattern.",
         nullable=False,
     )
+    case_sensitive = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
         db.DateTime,
@@ -40,12 +41,15 @@ class FlagFormatConfig(db.Model):
                 enabled=False,
                 flag_format=None,
                 error_message="Flag format does not match the required pattern.",
+                case_sensitive=False,
             )
             db.session.add(config)
             db.session.commit()
         return config
 
-    def update_config(self, enabled=None, flag_format=None, error_message=None):
+    def update_config(
+        self, enabled=None, flag_format=None, error_message=None, case_sensitive=None
+    ):
         """
         Update the configuration with new values.
         """
@@ -55,6 +59,8 @@ class FlagFormatConfig(db.Model):
             self.flag_format = flag_format
         if error_message is not None:
             self.error_message = error_message
+        if case_sensitive is not None:
+            self.case_sensitive = case_sensitive
 
         self.updated_at = datetime.now(timezone.utc)
         db.session.commit()
