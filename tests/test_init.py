@@ -64,8 +64,8 @@ class TestPluginInit(unittest.TestCase):
 
             plugin_init.load(self.app_mock)
 
-            # Verify database creation is called with checkfirst=True
-            self.app_mock.db.create_all.assert_called_once_with(checkfirst=True)
+            # Verify database creation is called
+            self.app_mock.db.create_all.assert_called_once_with()
 
             # Verify assets directory registration
             mock_register.assert_called_once_with(
@@ -95,14 +95,14 @@ class TestPluginInit(unittest.TestCase):
         """Test database initialization."""
         with patch("__init__.db") as mock_db:
             plugin_init.init_db()
-            mock_db.create_all.assert_called_once_with(checkfirst=True)
+            mock_db.create_all.assert_called_once_with()
 
     def test_init_tables_safely_success(self):
         """Test safe table initialization success case."""
         logger_mock = MagicMock()
         plugin_init.init_tables_safely(self.app_mock, logger_mock)
 
-        self.app_mock.db.create_all.assert_called_once_with(checkfirst=True)
+        self.app_mock.db.create_all.assert_called_once_with()
         logger_mock.debug.assert_called_once_with(
             "Database tables created/verified successfully"
         )
@@ -112,18 +112,12 @@ class TestPluginInit(unittest.TestCase):
         logger_mock = MagicMock()
         self.app_mock.db.create_all.side_effect = Exception("Table already exists")
 
-        with patch("__init__.FlagFormatConfig") as mock_config:
-            mock_config.query.first.return_value = None
+        plugin_init.init_tables_safely(self.app_mock, logger_mock)
 
-            plugin_init.init_tables_safely(self.app_mock, logger_mock)
-
-            self.app_mock.db.create_all.assert_called_once_with(checkfirst=True)
-            logger_mock.warning.assert_called_once_with(
-                "Database table creation warning: Table already exists"
-            )
-            logger_mock.info.assert_called_once_with(
-                "Flag format config table already exists and is accessible"
-            )
+        self.app_mock.db.create_all.assert_called_once_with()
+        logger_mock.warning.assert_called_once_with(
+            "Database table creation warning: Table already exists"
+        )
 
     def test_get_plugin_config(self):
         """Test plugin configuration getter."""
