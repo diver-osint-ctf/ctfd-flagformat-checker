@@ -54,66 +54,88 @@ func setConfig(t *testing.T, sess *testutil.Client, cfg flagFormatConfig) {
 	}
 }
 
-func TestFlagFormatChecker_RejectsBadFormat(t *testing.T) {
+// withConfig installs cfg, restores the prior config on cleanup, and returns
+// an admin client the test can reuse for further API calls / entity creation.
+func withConfig(t *testing.T, cfg flagFormatConfig) *testutil.Client {
+	t.Helper()
 	admin := testutil.AdminClient(t)
-	ns := testutil.Namespace(t)
-
+	sess := testutil.AdminSessionClient(t)
 	var orig flagFormatConfig
 	if _, err := admin.GetJSON(configAPI, &orig); err != nil {
-		t.Fatalf("read original flag-format config: %v", err)
+		t.Fatalf("read original config: %v", err)
 	}
-	sess := testutil.AdminSessionClient(t)
 	t.Cleanup(func() { setConfig(t, sess, orig) })
+	setConfig(t, sess, cfg)
+	return admin
+}
 
-	setConfig(t, sess, flagFormatConfig{
+// newChallengeUser creates a standard challenge with the given flag plus a
+// fresh user, returning the challenge ID and the user's client — the two
+// things every submission test actually needs.
+func newChallengeUser(t *testing.T, admin *testutil.Client, flag string) (int, *testutil.Client) {
+	t.Helper()
+	ns := testutil.Namespace(t)
+	chal := testutil.CreateChallenge(t, admin, ns, "main", testutil.ChallengeStandard, testutil.ChallengeOpts{
+		Flag: flag,
+	})
+	user := testutil.CreateUser(t, admin, ns, 1)
+	return chal.ID, testutil.UserClient(t, user.Name, user.Password)
+}
+
+// assertFormatRejected posts badFormat through the admin form and asserts the
+// plugin's validator refused to persist it. Used for the invalid-regex and
+// unescaped-braces cases, which differ only in the rejected string.
+func assertFormatRejected(t *testing.T, badFormat string) {
+	t.Helper()
+	sess := testutil.AdminSessionClient(t)
+	form := url.Values{}
+	form.Set("enabled", "on")
+	form.Set("flag_format", badFormat)
+	form.Set("error_message", "Bad")
+	resp, err := sess.PostFormWithNonce(configAdmin, form)
+	if err != nil {
+		t.Fatalf("post bad format %q: %v", badFormat, err)
+	}
+	resp.Body.Close()
+	// Reset to a known-good config so we don't poison subsequent tests.
+	t.Cleanup(func() { setConfig(t, sess, flagFormatConfig{Enabled: false}) })
+
+	admin := testutil.AdminClient(t)
+	var got flagFormatConfig
+	if _, err := admin.GetJSON(configAPI, &got); err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if got.FlagFormat == badFormat {
+		t.Errorf("bad format %q should not have been saved; got %+v", badFormat, got)
+	}
+}
+
+func TestFlagFormatChecker_RejectsBadFormat(t *testing.T) {
+	admin := withConfig(t, flagFormatConfig{
 		Enabled:      true,
 		FlagFormat:   defaultRegex,
 		ErrorMessage: "Bad flag format",
 	})
-
-	user := testutil.CreateUser(t, admin, ns, 1)
-	chal := testutil.CreateChallenge(t, admin, ns, "main", testutil.ChallengeStandard, testutil.ChallengeOpts{
-		Flag: "flag{good_flag}",
-	})
-
-	uc := testutil.UserClient(t, user.Name, user.Password)
+	chalID, uc := newChallengeUser(t, admin, "flag{good_flag}")
 
 	// 形式不正 → 400
-	bad := testutil.Submit(t, uc, chal.ID, "this-is-not-a-flag")
+	bad := testutil.Submit(t, uc, chalID, "this-is-not-a-flag")
 	testutil.RequireBadFlagFormat(t, bad)
 
 	// 正しい形式 → 200 / status=correct
-	ok := testutil.Submit(t, uc, chal.ID, "flag{good_flag}")
-	if ok.HTTPStatus != http.StatusOK {
-		t.Fatalf("expected 200 for well-formed flag, got %d (%s)", ok.HTTPStatus, ok.Message)
-	}
-	if ok.Status != "correct" {
-		t.Errorf("expected status=correct, got %q (%s)", ok.Status, ok.Message)
+	ok := testutil.Submit(t, uc, chalID, "flag{good_flag}")
+	if ok.HTTPStatus != http.StatusOK || ok.Status != "correct" {
+		t.Fatalf("well-formed flag: expected 200/correct, got %d/%s (%s)", ok.HTTPStatus, ok.Status, ok.Message)
 	}
 }
 
 func TestFlagFormatChecker_AllowsAnyWhenDisabled(t *testing.T) {
-	admin := testutil.AdminClient(t)
-	ns := testutil.Namespace(t)
-
-	var orig flagFormatConfig
-	if _, err := admin.GetJSON(configAPI, &orig); err != nil {
-		t.Fatalf("read original flag-format config: %v", err)
-	}
-	sess := testutil.AdminSessionClient(t)
-	t.Cleanup(func() { setConfig(t, sess, orig) })
-
 	// 設定を「明示的に無効」にする — 既存の正規表現に依存しない。
-	setConfig(t, sess, flagFormatConfig{Enabled: false, FlagFormat: defaultRegex})
-
-	user := testutil.CreateUser(t, admin, ns, 1)
-	chal := testutil.CreateChallenge(t, admin, ns, "main", testutil.ChallengeStandard, testutil.ChallengeOpts{
-		Flag: "flag{good_flag}",
-	})
-	uc := testutil.UserClient(t, user.Name, user.Password)
+	admin := withConfig(t, flagFormatConfig{Enabled: false, FlagFormat: defaultRegex})
+	chalID, uc := newChallengeUser(t, admin, "flag{good_flag}")
 
 	// 形式不正でも 400 にならない (CTFd 標準の incorrect 200 で帰る)
-	res := testutil.Submit(t, uc, chal.ID, "totally-not-a-flag")
+	res := testutil.Submit(t, uc, chalID, "totally-not-a-flag")
 	if res.HTTPStatus != http.StatusOK {
 		t.Errorf("expected 200 when checker is disabled, got %d (%s)", res.HTTPStatus, res.Message)
 	}
